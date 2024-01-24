@@ -1,8 +1,13 @@
-type Setterfn<T> = (prevState: T) => Partial<T>;
+import { useSyncExternalStore } from 'react';
 
-export function createStore<TState>(initialState: TState) {
-  let state = initialState;
-  const listeners = new Set<() => void>();
+type Setterfn<T> = (prevState: T) => Partial<T>;
+type SetStateFn<T> = (partialState: Partial<T> | Setterfn<T>) => void;
+
+export function createStore<TState extends Record<string, any>>(
+  createState: (setState: SetStateFn<TState>) => TState,
+) {
+  let state: TState;
+  let listeners: Set<() => void>;
 
   function notifyListeners() {
     listeners.forEach((listener) => listener());
@@ -32,5 +37,14 @@ export function createStore<TState>(initialState: TState) {
     return state;
   }
 
-  return { setState, getState, subscribe };
+  function useStore<TValue>(
+    selector: (currentState: TState) => TValue,
+  ): TValue {
+    return useSyncExternalStore(subscribe, () => selector(state));
+  }
+
+  state = createState(setState);
+  listeners = new Set();
+
+  return { setState, getState, subscribe, useStore };
 }
